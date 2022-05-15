@@ -56,38 +56,6 @@ def is_possible_to_download(response):
         raise BookDoesNotExist
 
 
-def get_author_and_title(response):
-    """Функция для извлечения строк автор
-       и название книги из html-страницы.
-    Args:
-        response (requests.models.Response): Объект полученный,
-        при выполнении запроса requests.get() (http-ответ)
-    Returns:
-        tuple: название книги, автор книги
-    """
-    soup = BeautifulSoup(response.text, 'lxml')
-    target_idx = 0
-    title, author = soup.title.text.split(',')[target_idx].split(' - ')
-    return (title, author)
-
-
-def get_img_url(response):
-    """Функция для извлечения ссылки на обложку книги.
-    Args:
-        response (requests.models.Response): Объект полученный,
-        при выполнении запроса requests.get() (http-ответ)
-    Returns:
-        str: url обложки книги
-    """
-    nopic = '/images/nopic.gif'
-    soup = BeautifulSoup(response.text, 'lxml')
-    table = soup.find('table', attrs={'class': 'd_book'})
-    bookimage = table.find('div', attrs={'class': 'bookimage'})
-    img_url = bookimage.find('img')['src']
-    if img_url != nopic:
-        return urljoin(response.url, img_url)
-
-
 def download_book_txt(url, book_id, filename, folder='books/'):
     """Функция для скачивания текстовых файлов(книг).
 
@@ -109,7 +77,7 @@ def download_book_txt(url, book_id, filename, folder='books/'):
     return book_path
 
 
-def download_book_img(url, folder='images/'):
+def download_book_cover(url, folder='images/'):
     """Функция для скачивания картинок(обложек книг).
 
     Args:
@@ -122,9 +90,29 @@ def download_book_img(url, folder='images/'):
     response.raise_for_status()
     file_name = path.basename(urlsplit(url).path)
     sanitized_filename = sanitize_filename(file_name)
-    book_path = path.join(folder, sanitized_filename)
-    with open(book_path, 'wb') as out_file:
+    cover_path = path.join(folder, sanitized_filename)
+    with open(cover_path, 'wb') as out_file:
         out_file.write(response.content)
+
+
+def parse_book_page(response):
+    soup = BeautifulSoup(response.text, 'lxml')
+    target_idx = 0
+    title, author = soup.title.text.split(',')[target_idx].split(' - ')
+    comments = soup.findAll('div', attrs={'class': 'texts'})
+    comments_text = [comment.find('span').text for comment in comments]
+    table = soup.find('table', attrs={'class': 'd_book'})
+    bookimage_tag = table.find('div', attrs={'class': 'bookimage'})
+    book_cover_url = urljoin(response.url, bookimage_tag.find('img')['src'])
+    genre_tags = soup.find('span', attrs={'class': 'd_book'}).find('a')['title']
+    genres = genre_tags.split(' - ')[target_idx].split(',')
+    return {
+        'title': title,
+        'author': author,
+        'comments': comments_text,
+        'cover_url': book_cover_url,
+        'genres': genres,
+    }
 
 
 if __name__ == '__main__':
@@ -135,23 +123,21 @@ if __name__ == '__main__':
     images_dir = make_dir(path.join(base_dir, 'images'))
     for book_id in range(book_start_id, books_count+1):
         book_info_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
-        book_data_url = urljoin(BASE_URL, 'txt.php')
+        book_txt_url = urljoin(BASE_URL, 'txt.php')
         try:
             book_info_response = requests.get(book_info_url)
             book_info_response.raise_for_status()
             check_for_redirect(book_info_response)
             is_possible_to_download(book_info_response)
-            title, author = get_author_and_title(book_info_response)
-            book_img_url = get_img_url(book_info_response)
-            if book_img_url:
-                download_book_img(
-                    book_img_url,
-                    images_dir,
-                )
+            book_data = parse_book_page(book_info_response)
+            download_book_cover(
+                book_data['cover_url'],
+                images_dir,
+            )
             download_book_txt(
-                urljoin(BASE_URL, book_data_url),
+                urljoin(BASE_URL, book_txt_url),
                 book_id,
-                title,
+                book_data['title'],
                 folder=books_dir,
                 )
         except BookDoesNotExist:
