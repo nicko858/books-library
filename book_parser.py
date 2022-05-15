@@ -1,9 +1,10 @@
 from os import makedirs, path
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlsplit
 
 import requests
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
+import shutil
 
 BASE_URL = 'https://tululu.org/'
 
@@ -13,15 +14,15 @@ class BookDoesNotExist(Exception):
     pass
 
 
-def make_book_dir(books_dir):
+def make_dir(target_dir):
     """Функция для создания директории.
     Args:
         books_dir (str): Путь к целевой директории.
     Returns:
         (str): Путь к целевой директории
     """
-    makedirs(books_dir, exist_ok=True)
-    return books_dir
+    makedirs(target_dir, exist_ok=True)
+    return target_dir
 
 
 def check_for_redirect(response):
@@ -70,6 +71,23 @@ def get_author_and_title(response):
     return (title, author)
 
 
+def get_img_url(response):
+    """Функция для извлечения ссылки на обложку книги.
+    Args:
+        response (requests.models.Response): Объект полученный,
+        при выполнении запроса requests.get() (http-ответ)
+    Returns:
+        str: url обложки книги
+    """
+    nopic = '/images/nopic.gif'
+    soup = BeautifulSoup(response.text, 'lxml')
+    table = soup.find('table', attrs={'class': 'd_book'})
+    bookimage = table.find('div', attrs={'class': 'bookimage'})
+    img_url = bookimage.find('img')['src']
+    if img_url != nopic:
+        return urljoin(response.url, img_url)
+
+
 def download_book_txt(url, book_id, filename, folder='books/'):
     """Функция для скачивания текстовых файлов(книг).
 
@@ -91,11 +109,30 @@ def download_book_txt(url, book_id, filename, folder='books/'):
     return book_path
 
 
+def download_book_img(url, folder='images/'):
+    """Функция для скачивания картинок(обложек книг).
+
+    Args:
+        url (str): Cсылка на ресурс, с которого будем качать.
+        folder (str): Папка, куда сохранять.
+    Returns:
+        str: Путь до файла, куда сохранёна обложка.
+    """
+    response = requests.get(url)
+    response.raise_for_status()
+    file_name = path.basename(urlsplit(url).path)
+    sanitized_filename = sanitize_filename(file_name)
+    book_path = path.join(folder, sanitized_filename)
+    with open(book_path, 'wb') as out_file:
+        out_file.write(response.content)
+
+
 if __name__ == '__main__':
     base_dir = path.dirname(path.realpath(__file__))
     books_count = 10
     book_start_id = 1
-    books_dir = make_book_dir(path.join(base_dir, 'books'))
+    books_dir = make_dir(path.join(base_dir, 'books'))
+    images_dir = make_dir(path.join(base_dir, 'images'))
     for book_id in range(book_start_id, books_count+1):
         book_info_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
         book_data_url = urljoin(BASE_URL, 'txt.php')
@@ -105,6 +142,12 @@ if __name__ == '__main__':
             check_for_redirect(book_info_response)
             is_possible_to_download(book_info_response)
             title, author = get_author_and_title(book_info_response)
+            book_img_url = get_img_url(book_info_response)
+            if book_img_url:
+                download_book_img(
+                    book_img_url,
+                    images_dir,
+                )
             download_book_txt(
                 urljoin(BASE_URL, book_data_url),
                 book_id,
