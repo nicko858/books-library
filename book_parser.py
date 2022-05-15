@@ -1,72 +1,44 @@
+import argparse
 from os import makedirs, path
 from urllib.parse import urljoin, urlsplit
 
 import requests
 from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
-import shutil
 
 BASE_URL = 'https://tululu.org/'
 
 
 class BookDoesNotExist(Exception):
-    """Воспроизводится, когда нет возможности скачать книгу."""
     pass
 
 
+def get_args():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('start_id', nargs='?', type=int, default=1)
+    parser.add_argument('end_id', nargs='?', type=int, default=10)
+    return parser.parse_args()
+
+
 def make_dir(target_dir):
-    """Функция для создания директории.
-    Args:
-        books_dir (str): Путь к целевой директории.
-    Returns:
-        (str): Путь к целевой директории
-    """
     makedirs(target_dir, exist_ok=True)
     return target_dir
 
 
 def check_for_redirect(response):
-    """Функция для проверки http-ответа на наличие событий redirect.
-
-    Args:
-        response (requests.models.Response): Объект полученный,
-        при выполнении запроса requests.get() (http-ответ)
-    Returns:
-        bool: Был ли redirect ?
-    """
     if response.history:
         raise BookDoesNotExist
 
 
-def is_possible_to_download(response):
-    """Функция для проверки возможности скачивания
-    файла исходя из данных http-ответа.
-
-    Args:
-        response (requests.models.Response): Объект полученный,
-        при выполнении запроса requests.get() (http-ответ)
-    Returns:
-        Ничего не возвращает. Только вызывает BookDoesNotExist
-        если не выполняется условие.
-    """
-    target_str = 'скачать txt'
+def can_download(response):
+    download_sign = 'скачать txt'
     soup = BeautifulSoup(response.text, 'lxml')
     table = soup.find('table', attrs={'class': 'd_book'})
-    if not bool([tag for tag in table.findAll('a') if target_str in tag]):
+    if not bool([tag for tag in table.findAll('a') if download_sign in tag]):
         raise BookDoesNotExist
 
 
 def download_book_txt(url, book_id, filename, folder='books/'):
-    """Функция для скачивания текстовых файлов(книг).
-
-    Args:
-        url (str): Cсылка на ресурс, с которого будем качать.
-        book_id (int): id книги, которую хочется скачать
-        filename (str): Имя файла, с которым сохранять.
-        folder (str): Папка, куда сохранять.
-    Returns:
-        str: Путь до файла, куда сохранён текст.
-    """
     response = requests.get(url, params={'id': book_id})
     response.raise_for_status()
     sanitized_filename = sanitize_filename('{0}.{1}'.format(book_id, filename))
@@ -78,14 +50,6 @@ def download_book_txt(url, book_id, filename, folder='books/'):
 
 
 def download_book_cover(url, folder='images/'):
-    """Функция для скачивания картинок(обложек книг).
-
-    Args:
-        url (str): Cсылка на ресурс, с которого будем качать.
-        folder (str): Папка, куда сохранять.
-    Returns:
-        str: Путь до файла, куда сохранёна обложка.
-    """
     response = requests.get(url)
     response.raise_for_status()
     file_name = path.basename(urlsplit(url).path)
@@ -93,6 +57,12 @@ def download_book_cover(url, folder='images/'):
     cover_path = path.join(folder, sanitized_filename)
     with open(cover_path, 'wb') as out_file:
         out_file.write(response.content)
+
+
+def download_book_info(url):
+    response = requests.get(url)
+    response.raise_for_status()
+    return response
 
 
 def parse_book_page(response):
@@ -116,19 +86,19 @@ def parse_book_page(response):
 
 
 if __name__ == '__main__':
+    args = get_args()
     base_dir = path.dirname(path.realpath(__file__))
-    books_count = 10
-    book_start_id = 1
+    book_start_id = args.start_id
+    book_end_id = args.end_id
     books_dir = make_dir(path.join(base_dir, 'books'))
     images_dir = make_dir(path.join(base_dir, 'images'))
-    for book_id in range(book_start_id, books_count+1):
+    for book_id in range(book_start_id, book_end_id+1):
         book_info_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
         book_txt_url = urljoin(BASE_URL, 'txt.php')
         try:
-            book_info_response = requests.get(book_info_url)
-            book_info_response.raise_for_status()
+            book_info_response = download_book_info(book_info_url)
             check_for_redirect(book_info_response)
-            is_possible_to_download(book_info_response)
+            can_download(book_info_response)
             book_data = parse_book_page(book_info_response)
             download_book_cover(
                 book_data['cover_url'],
