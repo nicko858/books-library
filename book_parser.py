@@ -30,7 +30,7 @@ def download_book_txt(url, book_id, filename, folder='books/'):
     response.raise_for_status()
     sanitized_filename = sanitize_filename('{0}.{1}'.format(book_id, filename))
     suffix = '.txt'
-    book_path = path.join(folder, sanitized_filename + suffix)
+    book_path = path.join(folder, '{0}{1}'.format(sanitized_filename, suffix))
     with open(book_path, 'w') as file_handler:
         file_handler.write(response.text)
     return book_path
