@@ -46,12 +46,6 @@ def download_book_cover(url, folder='images/'):
         out_file.write(response.content)
 
 
-def download_book_info(url):
-    response = requests.get(url)
-    response.raise_for_status()
-    return response
-
-
 def parse_book_page(response):
     soup = BeautifulSoup(response.text, 'lxml')
     download_sign = 'скачать txt'
@@ -88,9 +82,10 @@ if __name__ == '__main__':
         book_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
         book_txt_url = urljoin(BASE_URL, 'txt.php')
         try:
-            book_info_response = download_book_info(book_url)
-            check_for_redirect(book_info_response)
-            book = parse_book_page(book_info_response)
+            book_response = requests.get(book_url)
+            book_response.raise_for_status()
+            check_for_redirect(book_response)
+            book = parse_book_page(book_response)
             download_book_cover(
                 book['cover_url'],
                 images_dir_path,
