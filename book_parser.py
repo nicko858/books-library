@@ -30,6 +30,7 @@ def check_for_redirect(response):
 def download_book_txt(url, book_id, filename, folder='books/'):
     response = requests.get(url, params={'id': book_id})
     response.raise_for_status()
+    check_for_redirect(response)
 
     sanitized_filename = sanitize_filename('{0}.{1}'.format(book_id, filename))
     suffix = '.txt'
@@ -43,6 +44,7 @@ def download_book_txt(url, book_id, filename, folder='books/'):
 def download_book_cover(url, folder='images/'):
     response = requests.get(url)
     response.raise_for_status()
+    check_for_redirect(response)
 
     file_name = path.basename(urlsplit(url).path)
     sanitized_filename = sanitize_filename(file_name)
@@ -117,8 +119,8 @@ if __name__ == '__main__':
             except BookDoesNotExist:
                 print('Нет книги с id={0}!'.format(book_id))
                 break
-            except (requests.HTTPError, requests.ConnectionError):
-                print('Ошибка при вызове {0}'.format(book_url))
+            except (requests.HTTPError, requests.ConnectionError) as error:
+                print('Ошибка при вызове {0}'.format(error.request.url))
                 if first_attemp:
                     first_attemp = False
                     continue
