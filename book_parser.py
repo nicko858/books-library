@@ -85,23 +85,23 @@ if __name__ == '__main__':
     makedirs(books_dir_path, exist_ok=True)
     makedirs(images_dir_path, exist_ok=True)
     for book_id in range(book_start_id, book_end_id+1):
-        book_info_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
+        book_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
         book_txt_url = urljoin(BASE_URL, 'txt.php')
         try:
-            book_info_response = download_book_info(book_info_url)
+            book_info_response = download_book_info(book_url)
             check_for_redirect(book_info_response)
-            book_data = parse_book_page(book_info_response)
+            book = parse_book_page(book_info_response)
             download_book_cover(
-                book_data['cover_url'],
+                book['cover_url'],
                 images_dir_path,
             )
             download_book_txt(
                 urljoin(BASE_URL, book_txt_url),
                 book_id,
-                book_data['title'],
+                book['title'],
                 folder=books_dir_path,
                 )
         except BookDoesNotExist:
             print('Нет книги с id={0}!'.format(book_id))
         except (requests.HTTPError, requests.ConnectionError):
-            print('Ошибка при вызове ресурса {0}'.format(book_info_url))
+            print('Ошибка при вызове ресурса {0}'.format(book_url))
