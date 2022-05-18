@@ -20,21 +20,8 @@ def get_args():
     return parser.parse_args()
 
 
-def make_dir(target_dir):
-    makedirs(target_dir, exist_ok=True)
-    return target_dir
-
-
 def check_for_redirect(response):
     if response.history:
-        raise BookDoesNotExist
-
-
-def can_download(response):
-    download_sign = 'скачать txt'
-    soup = BeautifulSoup(response.text, 'lxml')
-    table = soup.find('table', attrs={'class': 'd_book'})
-    if not bool([tag for tag in table.findAll('a') if download_sign in tag]):
         raise BookDoesNotExist
 
 
@@ -67,11 +54,14 @@ def download_book_info(url):
 
 def parse_book_page(response):
     soup = BeautifulSoup(response.text, 'lxml')
+    download_sign = 'скачать txt'
+    table = soup.find('table', attrs={'class': 'd_book'})
+    if not bool([tag for tag in table.findAll('a') if download_sign in tag]):
+        raise BookDoesNotExist
     target_idx = 0
     title, author = soup.title.text.split(',')[target_idx].split(' - ')
     comments = soup.findAll('div', attrs={'class': 'texts'})
     comments_text = [comment.find('span').text for comment in comments]
-    table = soup.find('table', attrs={'class': 'd_book'})
     bookimage_tag = table.find('div', attrs={'class': 'bookimage'})
     book_cover_url = urljoin(response.url, bookimage_tag.find('img')['src'])
     genre_tags = soup.find('span', attrs={'class': 'd_book'}).find('a')['title']
@@ -90,25 +80,26 @@ if __name__ == '__main__':
     base_dir = path.dirname(path.realpath(__file__))
     book_start_id = args.start_id
     book_end_id = args.end_id
-    books_dir = make_dir(path.join(base_dir, 'books'))
-    images_dir = make_dir(path.join(base_dir, 'images'))
+    books_dir_path = path.join(base_dir, 'books')
+    images_dir_path = path.join(base_dir, 'images')
+    makedirs(books_dir_path, exist_ok=True)
+    makedirs(images_dir_path, exist_ok=True)
     for book_id in range(book_start_id, book_end_id+1):
         book_info_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
         book_txt_url = urljoin(BASE_URL, 'txt.php')
         try:
             book_info_response = download_book_info(book_info_url)
             check_for_redirect(book_info_response)
-            can_download(book_info_response)
             book_data = parse_book_page(book_info_response)
             download_book_cover(
                 book_data['cover_url'],
-                images_dir,
+                images_dir_path,
             )
             download_book_txt(
                 urljoin(BASE_URL, book_txt_url),
                 book_id,
                 book_data['title'],
-                folder=books_dir,
+                folder=books_dir_path,
                 )
         except BookDoesNotExist:
             print('Нет книги с id={0}!'.format(book_id))
