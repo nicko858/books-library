@@ -1,5 +1,6 @@
 import argparse
 from os import makedirs, path
+from time import sleep
 from urllib.parse import urljoin, urlsplit
 
 import requests
@@ -7,6 +8,7 @@ from bs4 import BeautifulSoup
 from pathvalidate import sanitize_filename
 
 BASE_URL = 'https://tululu.org/'
+SLEEP_WHEN_FAIL = 3
 
 
 class BookDoesNotExist(Exception):
@@ -78,25 +80,35 @@ if __name__ == '__main__':
     images_dir_path = path.join(base_dir, 'images')
     makedirs(books_dir_path, exist_ok=True)
     makedirs(images_dir_path, exist_ok=True)
+    first_attemp = True
     for book_id in range(book_start_id, book_end_id+1):
-        book_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
-        book_txt_url = urljoin(BASE_URL, 'txt.php')
-        try:
-            book_response = requests.get(book_url)
-            book_response.raise_for_status()
-            check_for_redirect(book_response)
-            book = parse_book_page(book_response)
-            download_book_cover(
-                book['cover_url'],
-                images_dir_path,
-            )
-            download_book_txt(
-                urljoin(BASE_URL, book_txt_url),
-                book_id,
-                book['title'],
-                folder=books_dir_path,
+        while True:
+            book_url = urljoin(BASE_URL, '/b{0}/'.format(book_id))
+            book_txt_url = urljoin(BASE_URL, 'txt.php')
+            try:
+                book_response = requests.get(book_url)
+                book_response.raise_for_status()
+                check_for_redirect(book_response)
+                book = parse_book_page(book_response)
+                download_book_cover(
+                    book['cover_url'],
+                    images_dir_path,
                 )
-        except BookDoesNotExist:
-            print('Нет книги с id={0}!'.format(book_id))
-        except (requests.HTTPError, requests.ConnectionError):
-            print('Ошибка при вызове ресурса {0}'.format(book_url))
+                download_book_txt(
+                    urljoin(BASE_URL, book_txt_url),
+                    book_id,
+                    book['title'],
+                    folder=books_dir_path,
+                    )
+            except BookDoesNotExist:
+                print('Нет книги с id={0}!'.format(book_id))
+                break
+            except (requests.HTTPError, requests.ConnectionError):
+                print('Ошибка при вызове ресурса {0}'.format(book_url))
+                print('Ошибка при вызове {0}'.format(book_url))
+                if first_attemp:
+                    first_attemp = False
+                    continue
+                sleep(SLEEP_WHEN_FAIL)
+                continue
+            break
