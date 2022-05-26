@@ -21,6 +21,7 @@ class BookDoesNotExist(Exception):
 
 def get_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument('-book_category_id', nargs='?', type=int, default=55)
     parser.add_argument('-start_page', nargs='?', type=int, default=1)
     parser.add_argument('-end_page', nargs='?', type=int, default=10)
     parser.add_argument('-dest_folder', nargs='?', type=str, default=BASE_DIR)
@@ -137,7 +138,7 @@ if __name__ == '__main__':
     skip_imgs = args.skip_imgs
     skip_txt = args.skip_txt
     json_path = args.json_path
-    book_category_id = 55
+    book_category_id = args.book_category_id
 
     books_dir_path = path.join(BASE_DIR, 'books')
     images_dir_path = path.join(BASE_DIR, 'images')
