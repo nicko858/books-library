@@ -31,27 +31,27 @@
 
 ## Как запускать
 
-### Пример запуска скрипта book_parser.py по умолчанию(без параметров)
+### Пример запуска скрипта `book_parser.py` по умолчанию(без параметров)
 
 ```bash
    python book_parser.py
 ```
 В этом случае скачаются книги с с `id=1-10`.  
 
-### Пример запуска скрипта book_parser.py с параметрами
+### Пример запуска скрипта `book_parser.py` с параметрами
 
 ```bash
    python book_parser.py 10 35
 ```
 В этом случае скачаются книги с с `id=10-35`.  
 
-### Пример запуска скрипта book_category_parser.py по умолчанию(без параметров)
+### Пример запуска скрипта `book_category_parser.py` по умолчанию(без параметров)
 
 ```bash
    python book_category_parser.py
 ```
 
-### Пример запуска скрипта book_category_parser.py с параметрами
+### Пример запуска скрипта `book_category_parser.py` с параметрами
 
 ```bash
    python book_category_parser.py -book_category_id=54 -end_page=2 -skip_imgs=True -json_path=/tmp/books.json
