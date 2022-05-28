@@ -37,14 +37,13 @@ def parse_books_urls(response):
     soup = BeautifulSoup(response.text, 'lxml')
     books_selector = '#content table a'
     books = soup.select(books_selector)
-    return [
-        urljoin(
-            response.url,
-            book['href'],
-            )
-        for book
-        in books if 'b' in book['href']
-        ]
+    book_url_sign = 'b'
+    books_urls = []
+    for book in books:
+        if book_url_sign in book['href']:
+            book_url = urljoin(response.url, book['href'])
+            books_urls.append(book_url)
+    return books_urls
 
 
 def main():
