@@ -1,7 +1,7 @@
 import argparse
 from os import makedirs, path
 from time import sleep
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import urljoin, urlparse, urlsplit
 
 import requests
 from bs4 import BeautifulSoup
@@ -9,6 +9,7 @@ from pathvalidate import sanitize_filename
 
 BASE_URL = 'https://tululu.org/'
 SLEEP_WHEN_FAIL = 3
+HTTP_TIMEOUT = 3
 
 
 class BookDoesNotExist(Exception):
@@ -28,11 +29,14 @@ def check_for_redirect(response):
 
 
 def download_book_txt(url, book_id, filename, folder='books/'):
-    response = requests.get(url, params={'id': book_id})
+    response = requests.get(url, params={'id': book_id}, timeout=HTTP_TIMEOUT)
     response.raise_for_status()
     check_for_redirect(response)
 
-    sanitized_filename = sanitize_filename('{0}.{1}'.format(book_id, filename))
+    sanitized_filename = sanitize_filename('{0}.{1}'.format(
+        book_id,
+        filename,
+        ))
     suffix = '.txt'
     book_path = path.join(folder, '{0}{1}'.format(sanitized_filename, suffix))
 
@@ -42,7 +46,7 @@ def download_book_txt(url, book_id, filename, folder='books/'):
 
 
 def download_book_cover(url, folder='images/'):
-    response = requests.get(url)
+    response = requests.get(url, timeout=HTTP_TIMEOUT)
     response.raise_for_status()
     check_for_redirect(response)
 
@@ -58,31 +62,52 @@ def parse_book_page(response):
     soup = BeautifulSoup(response.text, 'lxml')
 
     download_sign = 'скачать txt'
-    table = soup.find('table', attrs={'class': 'd_book'})
-    if not bool([tag for tag in table.findAll('a') if download_sign in tag]):
+    table_selector = 'table a'
+    table = soup.select(table_selector)
+
+    if not bool([tag for tag in table if download_sign in tag]):
         raise BookDoesNotExist
 
+    parsed_url = urlparse(response.url)
+    book_id = int(''.join(filter(str.isdigit, parsed_url.path)))
+
     target_idx = 0
-    title, author = soup.title.text.split(',')[target_idx].split(' - ')
-    genre_tags = soup.find('span', attrs={'class': 'd_book'}).find('a')['title']
-    genres = genre_tags.split(' - ')[target_idx].split(',')
+    title_area = soup.title.text.split(',')
+    try:
+        title, author = title_area[target_idx].split(' - ')
+    except ValueError:
+        title_area = soup.title.text.split(' - ')
+        title = title_area[target_idx]
+        author = title_area[target_idx + 1].split(',')[target_idx]
 
-    comments = soup.findAll('div', attrs={'class': 'texts'})
-    comments_text = [comment.find('span').text for comment in comments]
+    book_path = path.join('books', '{0}.{1}'.format(title, 'txt'))
 
-    bookimage_tag = table.find('div', attrs={'class': 'bookimage'})
-    book_cover_url = urljoin(response.url, bookimage_tag.find('img')['src'])
+    genre_selector = 'span.d_book a'
+    genre_tags = soup.select(genre_selector)
+    genres = [tag.string for tag in genre_tags]
+
+    comments_selector = 'div.texts span'
+    comments = soup.select(comments_selector)
+    comments_text = [comment.text for comment in comments]
+
+    book_img_selector = 'table div.bookimage img'
+    book_img_src = soup.select_one(book_img_selector)['src']
+    book_cover_url = urljoin(response.url, book_img_src)
+    img_src = (path.join('images', path.basename(book_img_src)))
 
     return {
+        'id': book_id,
         'title': title,
         'author': author,
         'comments': comments_text,
         'cover_url': book_cover_url,
+        'img_src': img_src,
+        'book_path': book_path,
         'genres': genres,
     }
 
 
-if __name__ == '__main__':
+def main():
     args = get_args()
     book_start_id = args.start_id
     book_end_id = args.end_id
@@ -127,3 +152,7 @@ if __name__ == '__main__':
                 sleep(SLEEP_WHEN_FAIL)
                 continue
             break
+
+
+if __name__ == '__main__':
+    main()
