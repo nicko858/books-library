@@ -2,19 +2,29 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 import json
 from livereload import Server
 from more_itertools import chunked
+# from math import ceil
+from os import path, makedirs
+
+BASE_DIR = path.dirname(path.realpath(__file__))
 
 
 def on_reload():
     with open('books.json') as file_handler:
         books = json.load(file_handler)
-    books_per_column = len(books) // 2
-    chuncked_books = list(chunked(books, books_per_column))
-    template = env.get_template('template.html')
-    rendered_page = template.render(
-        chuncked_books=chuncked_books,
-    )
-    with open('index.html', 'w', encoding='utf8') as file_handler:
-        file_handler.write(rendered_page)
+    books_per_page = 20
+    books_per_column = 10
+    chuncked_books = list(chunked(books, books_per_page))
+    pages_path = path.join(BASE_DIR, 'pages')
+    makedirs(pages_path, exist_ok=True)
+    for idx, books in enumerate(chuncked_books):
+        page_path = path.join(pages_path, 'index{0}.html'.format(idx))
+        template = env.get_template('template.html')
+        chuncked_books = list(chunked(books, books_per_column))
+        rendered_page = template.render(
+            chuncked_books=chuncked_books,
+        )
+        with open(page_path, 'w', encoding='utf8') as html:
+            html.write(rendered_page)
     print("Site reloaded")
 
 
