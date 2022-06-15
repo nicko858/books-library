@@ -80,7 +80,7 @@ def parse_book_page(response):
         title = title_area[target_idx]
         author = title_area[target_idx + 1].split(',')[target_idx]
 
-    book_path = path.join('books', '{0}.{1}'.format(title, 'txt'))
+    book_path = path.join('books', '{0}.{1}.{2}'.format(book_id, title, 'txt'))
 
     genre_selector = 'span.d_book a'
     genre_tags = soup.select(genre_selector)
