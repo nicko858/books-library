@@ -15,9 +15,18 @@ def on_reload():
     books_per_column = 10
     pages_count = ceil(len(books) / books_per_page)
     chuncked_books = list(chunked(books, books_per_page))
+    last_chuncked_element = len(chuncked_books) - 1
     pages_path = path.join(BASE_DIR, 'pages')
     makedirs(pages_path, exist_ok=True)
     for idx, books in enumerate(chuncked_books):
+        if idx == 0:
+            previous_page = len(chuncked_books) - 1
+        else:
+            previous_page = idx - 1
+        if idx == last_chuncked_element:
+            next_page = 0
+        else:
+            next_page = idx + 1
         page_path = path.join(pages_path, 'index{0}.html'.format(idx))
         template = env.get_template('template.html')
         chuncked_books = list(chunked(books, books_per_column))
@@ -26,6 +35,8 @@ def on_reload():
             current_page_num=idx,
             chuncked_books=chuncked_books,
             pages_path=pages_path,
+            next_page=next_page,
+            previous_page=previous_page,
         )
         with open(page_path, 'w', encoding='utf8') as html:
             html.write(rendered_page)
