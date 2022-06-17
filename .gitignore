@@ -161,6 +161,4 @@ cython_debug/
 index.html
 .replit
 media/
-books/
-images/
 books.json
