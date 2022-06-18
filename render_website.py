@@ -1,23 +1,34 @@
-from jinja2 import Environment, FileSystemLoader, select_autoescape
+import argparse
 import json
+from functools import partial
+from math import ceil
+from os import makedirs, path
+
+from jinja2 import Environment, FileSystemLoader, select_autoescape
 from livereload import Server
 from more_itertools import chunked
-from math import ceil
-from os import path, makedirs
 
 BASE_DIR = path.dirname(path.realpath(__file__))
 
 
-def on_reload():
-    with open('books.json') as file_handler:
-        books = json.load(file_handler)
-    books_per_page = 20
+def get_args(base_dir, books_json_file='books.json'):
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-is_dev_mode', action='store_true')
+    parser.add_argument(
+        '-books_json_path',
+        nargs='?',
+        type=str,
+        default=path.join(
+            base_dir,
+            books_json_file,
+            )
+        )
+    return parser.parse_args()
+
+
+def on_reload(pages_count, chuncked_books, pages_path, debug_msg=None):
     books_per_column = 10
-    pages_count = ceil(len(books) / books_per_page)
-    chuncked_books = list(chunked(books, books_per_page))
     last_chuncked_element = len(chuncked_books) - 1
-    pages_path = path.join(BASE_DIR, 'pages')
-    makedirs(pages_path, exist_ok=True)
     for idx, books in enumerate(chuncked_books):
         is_first_page = False
         is_last_page = False
@@ -42,17 +53,43 @@ def on_reload():
         )
         with open(page_path, 'w', encoding='utf8') as html:
             html.write(rendered_page)
-    print("Site reloaded")
+    if debug_msg:
+        print(debug_msg)
 
 
 if __name__ == '__main__':
+    args = get_args(BASE_DIR)
+    is_dev_mode = args.is_dev_mode
+    books_json_path = args.books_json_path
+
     env = Environment(
         loader=FileSystemLoader('.'),
         autoescape=select_autoescape(['html', 'xml']),
     )
 
-    server = Server()
+    with open(books_json_path) as file_handler:
+        books = json.load(file_handler)
 
-    server.watch('template.html', on_reload)
+    books_per_page = 20
+    books_per_column = 10
+    pages_count = ceil(len(books) / books_per_page)
+    chuncked_books = list(chunked(books, books_per_page))
 
-    server.serve(root='.')
+    pages_path = path.join(BASE_DIR, 'pages')
+    makedirs(pages_path, exist_ok=True)
+
+    if is_dev_mode:
+        debug_msg = 'Site reloaded'
+        server = Server()
+
+        server.watch('template.html', partial(
+            on_reload,
+            chuncked_books=chuncked_books,
+            pages_count=pages_count,
+            pages_path=pages_path,
+            debug_msg=debug_msg,
+            ))
+
+        server.serve(root='.')
+
+    on_reload(pages_count, chuncked_books, pages_path)
