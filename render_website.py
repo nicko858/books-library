@@ -21,12 +21,17 @@ def get_args(base_dir, books_json_file='books.json'):
         default=path.join(
             base_dir,
             books_json_file,
-            )
         )
+    )
     return parser.parse_args()
 
 
-def on_reload(pages_count, chuncked_books, pages_path, debug_msg=None):
+def generate_books_library(
+    pages_count,
+    chuncked_books,
+    pages_path,
+    debug_msg=None,
+):
     books_per_column = 10
     last_chuncked_element = len(chuncked_books) - 1
     for idx, books in enumerate(chuncked_books):
@@ -83,13 +88,13 @@ if __name__ == '__main__':
         server = Server()
 
         server.watch('template.html', partial(
-            on_reload,
+            generate_books_library,
             chuncked_books=chuncked_books,
             pages_count=pages_count,
             pages_path=pages_path,
             debug_msg=debug_msg,
-            ))
+        ))
 
         server.serve(root='.')
 
-    on_reload(pages_count, chuncked_books, pages_path)
+    generate_books_library(pages_count, chuncked_books, pages_path)
