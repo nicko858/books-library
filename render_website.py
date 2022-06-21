@@ -33,11 +33,11 @@ def generate_books_library(
     debug_msg=None,
 ):
     books_per_column = 10
-    last_chuncked_element = len(chuncked_books) - 1
-    for idx, books in enumerate(chuncked_books):
+    last_chuncked_element = len(chuncked_books)
+    for idx, books in enumerate(chuncked_books, start=1):
         is_first_page = False
         is_last_page = False
-        if idx == 0:
+        if idx == 1:
             is_first_page = True
         if idx == last_chuncked_element:
             is_last_page = True
@@ -76,7 +76,6 @@ if __name__ == '__main__':
         books = json.load(file_handler)
 
     books_per_page = 20
-    books_per_column = 10
     pages_count = ceil(len(books) / books_per_page)
     chuncked_books = list(chunked(books, books_per_page))
 
