@@ -35,12 +35,8 @@ def generate_books_library(
     books_per_column = 10
     last_chuncked_element = len(chuncked_books)
     for idx, books in enumerate(chuncked_books, start=1):
-        is_first_page = False
-        is_last_page = False
-        if idx == 1:
-            is_first_page = True
-        if idx == last_chuncked_element:
-            is_last_page = True
+        is_first_page = idx == 1
+        is_last_page = idx == last_chuncked_element
         next_page = idx + 1
         previous_page = idx - 1
         page_path = path.join(pages_path, 'index{0}.html'.format(idx))
