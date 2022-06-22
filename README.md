@@ -1,6 +1,6 @@
 # Локальная библиотека книг на основе [tululu](https://tululu.org/)
 
-Пример сайта можно посмотреть [здесь](https://nicko858.github.io/books-library/pages/index0.html).
+Пример сайта можно посмотреть [здесь](https://nicko858.github.io/books-library/pages/index1.html).
 
 ## Описание функционала для разработчиков
 
